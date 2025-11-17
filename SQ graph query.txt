@@ -1,0 +1,82 @@
+----------getTotalWaterHourly-------
+
+SELECT hh                     AS timePeriod,
+       SUM(water_consumption) AS totalWater
+FROM (SELECT device_id,
+             FORMAT(date_time, 'HH')                         AS hh,
+             FORMAT(date_time, 'dd, hh tt')                  AS date_wise,
+             MAX(WATER_CONSUMPTION) - MIN(WATER_CONSUMPTION) AS water_consumption
+      FROM device_type dt
+               LEFT JOIN device d ON (
+          dt.id = d.device_type_id
+              AND dt.parent_id = 104
+              AND d.unit_id = :unitId
+              and d.input_type = :inputType
+              AND d.is_active = 1
+          )
+               JOIN device_reading dr ON (
+          d.id = dr.device_id
+              AND dr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+          )
+      GROUP BY device_id, FORMAT(date_time, 'HH'), FORMAT(date_time, 'dd, hh tt')) AS hourly_data
+GROUP BY hh, date_wise
+ORDER BY hh
+
+
+---------getTotalWaterDaily---------------
+SELECT dd                     AS timePeriod,
+       SUM(water_consumption) AS totalWater
+FROM (SELECT device_id,
+             CAST(date_time AS DATE)                AS dd,
+             MAX(WATER_CONSUMPTION) - MIN(WATER_CONSUMPTION) AS water_consumption
+      FROM device_type dt
+               LEFT JOIN device d
+                         ON (dt.id = d.device_type_id AND dt.parent_id = 104 AND d.unit_id = :unitId AND
+                             d.is_active = 1 AND d.input_type = :inputType)
+               JOIN device_reading dr
+                    ON d.id = dr.device_id
+                        AND dr.date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM'
+      GROUP BY device_id, CAST(date_time AS DATE)) AS sub
+GROUP BY dd
+ORDER BY dd
+;
+
+-----------getTotalWaterMonthly--------------
+SELECT dd                    AS timePeriod,
+       SUM(water_consumption) AS totalWater
+FROM (SELECT device_id,
+             FORMAT(date_time, 'yyyy-MM')                  AS dd,
+             MAX(water_consumption) - MIN(water_consumption) AS water_consumption
+      FROM device_type dt
+               LEFT JOIN device d
+                         ON dt.id = d.device_type_id
+                             AND dt.parent_id = 104
+                             AND d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             AND d.is_active = 1
+               JOIN device_reading dr
+                    ON d.id = dr.device_id
+                        AND dr.date_time between :year + '-01-01 12:00:00.0000000 AM' and :year + '-12-31 11:59:59.0000000 PM'
+      GROUP BY device_id,FORMAT(date_time, 'yyyy-MM') ) AS sub
+GROUP BY dd
+ORDER BY dd
+;
+
+---------getTotalWaterYearly----------------
+SELECT dd                     AS timePeriod,
+       SUM(water_consumption) AS totalWater
+FROM (SELECT device_id,
+             YEAR(date_time)                       AS dd,
+             MAX(water_consumption) - MIN(water_consumption) AS water_consumption
+      FROM device_type dt
+               LEFT JOIN device d
+                         ON dt.id = d.device_type_id
+                             AND dt.parent_id = 104
+                             AND d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             AND d.is_active = 1
+               JOIN device_reading dr
+                    ON d.id = dr.device_id
+      GROUP BY device_id,YEAR(date_time)) AS sub
+GROUP BY dd
+ORDER BY dd

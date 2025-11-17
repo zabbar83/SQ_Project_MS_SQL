@@ -1,0 +1,150 @@
+---------hourly in a day-----------
+select
+    typeName as typeName,
+    dateTime as dateTime,
+    sum(maxHighValue) as totalMaxHighValue
+from (select d.id           as id,
+             d.name         as name,
+             dt.name        as typeName,
+             max(ehr.high_value) as maxHighValue,
+             FORMAT(ehr.date_time, 'dd-MMM-yyyy hh') AS dateTime
+      from  emeter_health_reading ehr
+      inner join device d on ehr.device_id = d.id
+      inner join device_type dt on d.device_type_id = dt.id
+      WHERE
+        ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+        AND d.input_type = :inputType
+        AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01'
+      group by d.id,d.name,dt.name, FORMAT(ehr.date_time, 'dd-MMM-yyyy hh')
+     )a
+group by typeName,dateTime
+;
+
+---------daily in a month-----------
+select
+    typeName as typeName,
+    dateTime as dateTime,
+    sum(maxHighValue) as totalMaxHighValue
+from (select d.id           as id,
+             d.name         as name,
+             dt.name        as typeName,
+             max(ehr.high_value) as maxHighValue,
+             FORMAT(ehr.date_time, 'dd-MMM-yyyy') AS dateTime
+      from emeter_health_reading ehr
+               inner join device d on ehr.device_id = d.id
+               inner join device_type dt on d.device_type_id = dt.id
+      WHERE
+        ehr.date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+        AND d.input_type = :inputType
+        AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01'
+      group by d.id,d.name,dt.name, FORMAT(ehr.date_time, 'dd-MMM-yyyy')
+     )a
+group by typeName,dateTime
+
+;
+
+
+---------monthly in a year------------
+select typeName          as typeName,
+       dateTime          as dateTime,
+       sum(maxHighValue) as totalMaxHighValue
+from (select d.id                              as id,
+             d.name                            as name,
+             dt.name                           as typeName,
+             max(ehr.high_value)               as maxHighValue,
+             FORMAT(ehr.date_time, 'MMM-yyyy') AS dateTime
+      from emeter_health_reading ehr
+               inner join device d on ehr.device_id = d.id
+               inner join device_type dt on d.device_type_id = dt.id
+      WHERE ehr.date_time between :year + '-01-01 12:00:00.0000000 AM' and :year + '-12-31 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+        AND d.input_type = :inputType
+        AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01'
+      group by d.id, d.name, dt.name, FORMAT(ehr.date_time, 'MMM-yyyy')) a
+group by typeName, dateTime
+
+;
+
+
+---output device hourly in a day----------
+select
+    'Output Device' as typeName,
+    dateTime as dateTime,
+    sum(maxHighValue) as totalMaxHighValue
+from (select d.id           as id,
+             d.name         as name,
+             dt.name        as typeName,
+             max(ehr.high_value) as maxHighValue,
+             FORMAT(ehr.date_time, 'dd-MMM-yyyy hh') AS dateTime
+      from emeter_health_reading ehr
+               inner join device d on ehr.device_id = d.id
+               inner join device_type dt on d.device_type_id = dt.id
+      WHERE
+          ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+        AND d.input_type = :inputType
+        AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01'
+      group by d.id,d.name,dt.name, FORMAT(ehr.date_time, 'dd-MMM-yyyy hh')
+     )a
+group by dateTime
+;
+
+
+---output device daily in a month----------
+select
+    'Output Device' as typeName,
+    dateTime as dateTime,
+    sum(maxHighValue) as totalMaxHighValue
+from (select d.id           as id,
+             d.name         as name,
+             dt.name        as typeName,
+             max(ehr.high_value) as maxHighValue,
+             FORMAT(ehr.date_time, 'dd-MMM-yyyy') AS dateTime
+      from emeter_health_reading ehr
+               inner join device d on ehr.device_id = d.id
+               inner join device_type dt on d.device_type_id = dt.id
+
+      WHERE
+          ehr.date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+        AND d.input_type = :inputType
+        AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01'
+
+      group by d.id,d.name,dt.name, FORMAT(ehr.date_time, 'dd-MMM-yyyy')
+     )a
+group by dateTime
+;
+
+
+---output device monthly in a year----------
+select 'Output Device'   as typeName,
+       dateTime          as dateTime,
+       sum(maxHighValue) as totalMaxHighValue
+from (select d.id                              as id,
+             d.name                            as name,
+             dt.name                           as typeName,
+             max(ehr.high_value)               as maxHighValue,
+             FORMAT(ehr.date_time, 'MMM-yyyy') AS dateTime
+      from emeter_health_reading ehr
+               inner join device d on ehr.device_id = d.id
+               inner join device_type dt on d.device_type_id = dt.id
+      WHERE ehr.date_time between :year + '-01-01 12:00:00.0000000 AM' and :year + '-12-31 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+        AND d.input_type = :inputType
+        AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01'
+      group by d.id, d.name, dt.name, FORMAT(ehr.date_time, 'MMM-yyyy')) a
+group by dateTime

@@ -1,0 +1,53 @@
+select  mw.mm as month,
+        sum(mw.water_consumption) totalYearBc
+from (select  device_id,
+              DATENAME(MONTH, GETDATE()) mm,
+              max(WATER_CONSUMPTION) - min(WATER_CONSUMPTION) water_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id and MONTH(date_time) = MONTH(GETDATE()))
+      group by device_id
+     ) mw
+group by mw.mm
+;
+
+select  mw.mm as month,
+        sum(mw.air_consumption) totalYearBc
+from (select  device_id,
+              DATENAME(MONTH, GETDATE()) mm,
+              max(compressor_consumption) - min(compressor_consumption) air_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id and MONTH(date_time) = MONTH(GETDATE()))
+      group by device_id
+     ) mw
+group by mw.mm
+;
+
+select  mw.mm as month,
+        sum(mw.energy) totalYearBc
+from (select  device_id,
+              DATENAME(MONTH, GETDATE()) mm,
+              MAX(ACTIVEENERGYDELIVERED) - MIN(ACTIVEENERGYDELIVERED) AS energy
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join emeter_health_reading ehr on (d.id = ehr.device_id and MONTH(date_time) = MONTH(GETDATE()))
+      group by device_id
+     ) mw
+group by mw.mm
+;

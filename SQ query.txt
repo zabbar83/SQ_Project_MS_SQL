@@ -1,0 +1,173 @@
+---------getTotalElectricityConsumptionOfTheSingleDay----------
+select mw.mm as       timePeriod,
+       sum(mw.energy) total
+from (select device_id,
+             :fromDate                               mm,
+             MAX(ACTIVEENERGYDELIVERED) - MIN(ACTIVEENERGYDELIVERED) AS energy
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join emeter_health_reading ehr on (d.id = ehr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+---------getTotalElectricityConsumptionOfTheMonth----------
+select mw.mm as       timePeriod,
+       sum(mw.energy) total
+from (select device_id,
+             DATENAME(MONTH, :fromDate)                                 mm,
+             MAX(ACTIVEENERGYDELIVERED) - MIN(ACTIVEENERGYDELIVERED) AS energy
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join emeter_health_reading ehr on (d.id = ehr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+;
+---------getTotalElectricityConsumptionOfTheYear----------
+select mw.mm as       timePeriod,
+       sum(mw.energy) total
+from (select device_id,
+             year(:fromDate )                              mm,
+             MAX(ACTIVEENERGYDELIVERED) - MIN(ACTIVEENERGYDELIVERED) AS energy
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join emeter_health_reading ehr on (d.id = ehr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+
+;
+-----------getTotalWaterConsumptionOfTheSingleDay------
+select mw.mm as                  timePeriod,
+       sum(mw.water_consumption) total
+from (select device_id,
+             :fromDate                      mm,
+             max(WATER_CONSUMPTION) - min(WATER_CONSUMPTION) water_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+;
+-----------getTotalWaterConsumptionOfTheMonth------
+select mw.mm as                  timePeriod,
+       sum(mw.water_consumption) total
+from (select device_id,
+             DATENAME(MONTH, :fromDate)                      mm,
+             max(WATER_CONSUMPTION) - min(WATER_CONSUMPTION) water_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+;
+-----------getTotalWaterConsumptionOfTheYear------
+select mw.mm as                  timePeriod,
+       sum(mw.water_consumption) total
+from (select device_id,
+             year(:fromDate)                      mm,
+             max(WATER_CONSUMPTION) - min(WATER_CONSUMPTION) water_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+;
+----------getTotalAirConsumptionOfTheSingleDay--------------
+
+select mw.mm as                timePeriod,
+       sum(mw.air_consumption) total
+from (select device_id,
+             :fromDate                                mm,
+             max(compressor_consumption) - min(compressor_consumption) air_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+;
+----------getTotalAirConsumptionOfTheMonth--------------
+
+select mw.mm as                timePeriod,
+       sum(mw.air_consumption) total
+from (select device_id,
+             DATENAME(MONTH, :fromDate)                                mm,
+             max(compressor_consumption) - min(compressor_consumption) air_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+;
+----------getTotalAirConsumptionOfTheYear--------------
+
+select mw.mm as                timePeriod,
+       sum(mw.air_consumption) total
+from (select device_id,
+             year(:fromDate)                                mm,
+             max(compressor_consumption) - min(compressor_consumption) air_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id and date_time between :fromDate + ' 12:00:00.0000000 AM' and :toDate + ' 11:59:59.0000000 PM')
+      group by device_id) mw
+group by mw.mm
+;
+
+----------getTotalAirConsumptionOfThelifeTime--------------
+
+select 'lifeTime' lifeTime,
+       sum(mw.air_consumption) total
+from (select device_id,
+             max(compressor_consumption) - min(compressor_consumption) air_consumption
+      from device_type dt
+               left join device d
+                         on (dt.id = d.device_type_id
+                             and dt.parent_id = :deviceTypeId
+                             and d.unit_id = :unitId
+                             and d.input_type = :inputType
+                             and d.is_active = 1)
+               join device_reading dr on (d.id = dr.device_id)
+      group by device_id) mw
+;

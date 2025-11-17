@@ -1,0 +1,110 @@
+
+---------hourly in a day-----------
+select
+        t1.device_Id,
+        t1.typeName as typeName,
+        t1.hh1,
+        coalesce(t2.totalMaxHighValue,0) totalMaxHighValue
+from
+(select  b.id device_id, b.typeName,a.hh1
+from
+    (SELECT FORMAT(DATEADD(HOUR, number, 0), 'HH') AS HH1
+      FROM master..spt_values
+      WHERE type = 'P'
+        AND number BETWEEN 0 AND 23)a,
+(select  distinct dt.id,dt.name typeName
+        from  emeter_health_reading ehr
+                inner join device d on ehr.device_id = d.id
+                inner join device_type dt on d.device_type_id = dt.id
+      WHERE
+          ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+                         AND d.input_type = :inputType
+                                             AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01')b
+    )t1
+left join
+(select
+    deviceId,
+    typeName as typeName,
+    dateTime as dateTime,
+    substring(dateTime,13,2) hh2,
+    sum(maxHighValue) as totalMaxHighValue
+from (select d.id           as id,
+             d.name         as name,
+             dt.id deviceId,
+             dt.name        as typeName,
+             max(ehr.high_value) as maxHighValue,
+             FORMAT(ehr.date_time, 'dd-MMM-yyyy hh') AS dateTime
+      from  emeter_health_reading ehr
+                inner join device d on ehr.device_id = d.id
+                inner join device_type dt on d.device_type_id = dt.id
+      WHERE
+          ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+        AND d.input_type = :inputType
+        AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01'
+      group by d.id,d.name,dt.name,dt.id, FORMAT(ehr.date_time, 'dd-MMM-yyyy hh')
+     )a
+group by deviceId,typeName,dateTime,substring(dateTime,13,2)
+)t2 on t1.device_id=t2.deviceId and t1.hh1=t2.hh2
+order by t1.device_id,t1.hh1
+;
+
+
+---output device hourly in a day----------
+select
+        'Output Device' as typeName,
+        t1.hh1 + ':00' hh1,
+        coalesce(sum(t2.totalMaxHighValue),0) totalMaxHighValue
+from
+(select  b.id device_id, b.typeName,a.hh1
+from
+    (SELECT FORMAT(DATEADD(HOUR, number, 0), 'HH') AS HH1
+      FROM master..spt_values
+      WHERE type = 'P'
+        AND number BETWEEN 0 AND 23)a,
+(select  distinct dt.id,dt.name typeName
+        from  emeter_health_reading ehr
+                inner join device d on ehr.device_id = d.id
+                inner join device_type dt on d.device_type_id = dt.id
+      WHERE
+          ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+                         AND d.input_type = :inputType
+                                             AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01')b
+    )t1
+left join
+(select
+    deviceId,
+    typeName as typeName,
+    dateTime as dateTime,
+    substring(dateTime,13,2) hh2,
+    sum(maxHighValue) as totalMaxHighValue
+from (select d.id           as id,
+             d.name         as name,
+             dt.id deviceId,
+             dt.name        as typeName,
+             max(ehr.high_value) as maxHighValue,
+             FORMAT(ehr.date_time, 'dd-MMM-yyyy hh') AS dateTime
+      from  emeter_health_reading ehr
+                inner join device d on ehr.device_id = d.id
+                inner join device_type dt on d.device_type_id = dt.id
+      WHERE
+          ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+        AND dt.parent_id = 101
+        AND d.unit_id = :unitId
+        AND d.input_type = :inputType
+        AND d.is_active = 1
+        AND d.name != 'GAS-GENERATOR-01'
+      group by d.id,d.name,dt.name,dt.id, FORMAT(ehr.date_time, 'dd-MMM-yyyy hh')
+     )a
+group by deviceId,typeName,dateTime,substring(dateTime,13,2)
+)t2 on t1.device_id=t2.deviceId and t1.hh1=t2.hh2
+group by t1.hh1
+order by t1.hh1
