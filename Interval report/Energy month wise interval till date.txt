@@ -1,0 +1,110 @@
+
+SELECT FORMAT(start_time, 'MM yyyy') AS mm,
+       FORMAT(start_time, 'MMM yyyy') AS monthWise,
+       SUM(CASE
+               WHEN device_device_id = 1 AND energyConsumption > 0 THEN energyConsumption
+               ELSE 0 END) AS energy_1,
+       SUM(CASE
+               WHEN device_device_id = 2 AND energyConsumption > 0 THEN energyConsumption
+               ELSE 0 END) AS energy_2,
+       SUM(CASE
+               WHEN device_device_id = 3 AND energyConsumption > 0 THEN energyConsumption
+               ELSE 0 END) AS energy_3,
+       SUM(CASE
+               WHEN device_device_id IN (1,2,3) AND energyConsumption > 0 THEN energyConsumption
+               ELSE 0 END) AS totalEnergy
+from(select  sl,
+        device_device_id,
+        start_time,
+        end_time,
+        energy_pre_latest_data,
+        energy_max_value,
+        case
+            when sl = 1 then energy_max_value - energy_pre_latest_data
+            else energy_max_value - isnull((LAG(energy_max_value) OVER (PARTITION BY device_device_id ORDER BY device_device_id, sl)),0)
+            end energyConsumption
+from
+    (select  sl,
+        device_device_id,
+        start_time,
+        end_time,
+        isnull(energy_pre_latest_data,0) energy_pre_latest_data,
+        MAX(
+                CASE
+                    WHEN sl = 1 AND energy_max_value IS NULL THEN ISNULL(energy_pre_latest_data, 0)
+                    ELSE energy_max_value
+                    END
+        ) OVER (
+                    PARTITION BY device_device_id
+                    ORDER BY sl
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                    ) AS energy_max_value
+from (
+SELECT dtr.sl,
+       dtr.device_device_id,
+       start_time,
+       end_time,
+       MAX(CASE
+               WHEN MAX(ehr.ACTIVEENERGYDELIVERED) IS NULL THEN NULL
+               ELSE MAX(ehr.ACTIVEENERGYDELIVERED)
+               END)
+           OVER (
+               PARTITION BY device_device_id
+               ORDER BY sl
+               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+               ) AS energy_max_value
+from (SELECT d.id device_device_id,
+             d.*,
+             tr.*
+      FROM device_type dt
+               JOIN device d ON dt.id = d.device_type_id
+          AND dt.parent_id = 101
+          AND d.unit_id = 1
+          AND d.is_active = 'true'
+               cross join (SELECT
+                               ROW_NUMBER() OVER (ORDER BY number) AS sl,
+                               DATEADD(SECOND, 1,
+                                       DATEADD(MONTH, number - 1,
+                                               CAST(
+                                                       DATEADD(DAY, 1 - DAY(CONVERT(DATE, :fromYear)), CONVERT(DATETIME, :fromYear))
+                                                   AS DATETIME)
+                                       )
+                               ) AS start_time,
+                               DATEADD(MONTH, number,
+                                       CAST(
+                                               DATEADD(DAY, 1 - DAY(CONVERT(DATE, :fromYear)), CONVERT(DATETIME, :fromYear))
+                                           AS DATETIME)
+                               ) AS end_time
+
+                           FROM master..spt_values
+                           WHERE type = 'P'
+                             AND number BETWEEN 1 AND
+                               (
+                                   (YEAR(CONVERT(DATE, :toYear)) - YEAR(CONVERT(DATE, :fromYear))) * 12
+                                       + (MONTH(CONVERT(DATE, :toYear)) - MONTH(CONVERT(DATE, :fromYear))) + 1
+                                   )) tr) dtr
+         LEFT JOIN emeter_health_reading ehr
+                   ON dtr.id = ehr.device_id
+                       AND ehr.date_time BETWEEN dtr.start_time AND dtr.end_time
+                       AND ehr.ACTIVEENERGYDELIVERED > 0
+                       AND ehr.date_time <= :toYear + ' 23:59:59.000'
+group by dtr.sl, dtr.device_device_id, start_time, end_time )dmv
+LEFT JOIN (SELECT *
+           FROM (
+                    SELECT device_id,
+                           date_time AS previous_latest_date_time,
+                           ACTIVEENERGYDELIVERED AS energy_pre_latest_data,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY device_id
+                               ORDER BY device_id, date_time DESC, ACTIVEENERGYDELIVERED DESC
+                               ) AS boi_rnk
+                    FROM emeter_health_reading
+                    WHERE date_time < CAST(CONCAT(:fromYear, ' 00:00:01') AS DATETIME)
+                      AND ACTIVEENERGYDELIVERED > 0
+                ) AS t
+           WHERE boi_rnk = 1
+)pd
+on dmv.device_device_id = pd.device_id)vs
+)fv
+group by FORMAT(start_time, 'MM yyyy'), FORMAT(start_time, 'MMM yyyy')
+order by FORMAT(start_time, 'MM yyyy')
