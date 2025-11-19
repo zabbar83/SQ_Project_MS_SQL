@@ -1,0 +1,102 @@
+
+SELECT FORMAT(start_time, 'dd MMM yyyy') AS dd,
+       FORMAT(start_time, 'MMM dd yyyy') AS dateWise,
+       SUM(CASE
+               WHEN device_device_id =52 AND waterConsumption > 0 THEN waterConsumption
+               ELSE 0 END) AS energy_52,
+       SUM(CASE
+               WHEN device_device_id = 65 AND waterConsumption > 0 THEN waterConsumption
+               ELSE 0 END) AS energy_65,
+       SUM(CASE
+               WHEN device_device_id IN (52,65) AND waterConsumption > 0 THEN waterConsumption
+               ELSE 0 END) AS totalEnergy
+from(select  sl,
+             device_device_id,
+             start_time,
+             end_time,
+             water_pre_latest_data,
+             water_max_value,
+             case
+                 when sl = 1 then water_max_value - water_pre_latest_data
+                 else water_max_value - isnull((LAG(water_max_value) OVER (PARTITION BY device_device_id ORDER BY device_device_id, sl)),0)
+                 end waterConsumption
+     from
+         (select  sl,
+                  device_device_id,
+                  start_time,
+                  end_time,
+                  isnull(water_pre_latest_data,0) water_pre_latest_data,
+                  MAX(
+                          CASE
+                              WHEN sl = 1 AND water_max_value IS NULL THEN ISNULL(water_pre_latest_data, 0)
+                              ELSE water_max_value
+                              END
+                  ) OVER (
+                              PARTITION BY device_device_id
+                              ORDER BY sl
+                              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                              ) AS water_max_value
+          from (
+                   SELECT dtr.sl,
+                          dtr.device_device_id,
+                          start_time,
+                          end_time,
+                          MAX(CASE
+                                  WHEN MAX(ehr.WATER_CONSUMPTION) IS NULL THEN NULL
+                                  ELSE MAX(ehr.WATER_CONSUMPTION)
+                                  END)
+                              OVER (
+                                  PARTITION BY device_device_id
+                                  ORDER BY sl
+                                  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                                  ) AS water_max_value
+                   from (SELECT d.id device_device_id,
+                                d.*,
+                                tr.*
+                         FROM device_type dt
+                                  JOIN device d ON dt.id = d.device_type_id
+                             AND dt.parent_id = 104
+                             AND d.unit_id = 1
+                             AND d.is_active = 'true'
+                                  cross join (SELECT
+                                                  ROW_NUMBER() OVER (ORDER BY number) AS sl,
+                                                  DATEADD(SECOND, 1,
+                                                          DATEADD(DAY, number,
+                                                                  TRY_CONVERT(DATETIME, :fromDate)
+                                                          )
+                                                  ) AS start_time,
+                                                  DATEADD(DAY, number + 1,
+                                                          TRY_CONVERT(DATETIME, :fromDate)
+                                                  ) AS end_time
+                                              FROM master..spt_values
+                                              WHERE type = 'P'
+                                                AND number BETWEEN 0 AND
+                                                  DATEDIFF(
+                                                          DAY,
+                                                          TRY_CONVERT(DATETIME, :fromDate),
+                                                          TRY_CONVERT(DATETIME, :toDate)
+                                                  )) tr) dtr
+                            LEFT JOIN device_reading ehr
+                                      ON dtr.id = ehr.device_id
+                                          AND ehr.date_time BETWEEN dtr.start_time AND dtr.end_time
+                                          AND ehr.WATER_CONSUMPTION > 0
+                   group by dtr.sl, dtr.device_device_id, start_time, end_time )dmv
+                   LEFT JOIN (SELECT *
+                              FROM (
+                                       SELECT device_id,
+                                              date_time AS previous_latest_date_time,
+                                              WATER_CONSUMPTION AS water_pre_latest_data,
+                                              ROW_NUMBER() OVER (
+                                                  PARTITION BY device_id
+                                                  ORDER BY device_id, date_time DESC, WATER_CONSUMPTION DESC
+                                                  ) AS boi_rnk
+                                       FROM device_reading
+                                       WHERE date_time < CAST(CONCAT(:fromDate, ' 00:00:01') AS DATETIME)
+                                         AND WATER_CONSUMPTION > 0
+                                   ) AS t
+                              WHERE boi_rnk = 1
+          )pd
+                             on dmv.device_device_id = pd.device_id)vs
+    )fv
+group by FORMAT(start_time, 'dd MMM yyyy'), FORMAT(start_time, 'MMM dd yyyy')
+order by FORMAT(start_time, 'dd MMM yyyy')
