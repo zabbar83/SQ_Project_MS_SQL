@@ -2,16 +2,13 @@
 SELECT FORMAT(start_time, 'HH') AS hh,
        FORMAT(start_time, 'dd, hh tt') AS hourWise,
        SUM(CASE
-               WHEN device_device_id = 1 AND energyConsumption > 0 THEN energyConsumption
-               ELSE 0 END) AS energy_1,
+               WHEN device_device_id = 44 AND energyConsumption > 0 THEN energyConsumption
+               ELSE 0 END) AS energy_44,
        SUM(CASE
-               WHEN device_device_id = 2 AND energyConsumption > 0 THEN energyConsumption
-               ELSE 0 END) AS energy_2,
+               WHEN device_device_id = 46 AND energyConsumption > 0 THEN energyConsumption
+               ELSE 0 END) AS energy_46,
        SUM(CASE
-               WHEN device_device_id = 3 AND energyConsumption > 0 THEN energyConsumption
-               ELSE 0 END) AS energy_3,
-       SUM(CASE
-               WHEN device_device_id IN (1,2,3) AND energyConsumption > 0 THEN energyConsumption
+               WHEN device_device_id IN (44,46) AND energyConsumption > 0 THEN energyConsumption
                ELSE 0 END) AS totalEnergy
 from(select  sl,
         device_device_id,
