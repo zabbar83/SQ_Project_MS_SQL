@@ -1,0 +1,77 @@
+--monthly 
+
+Insert into monthly_consumption_data (id,device_id,target_month,max_compressor_consumption,max_energy,max_high_value,max_water_consumption,
+                                      min_compressor_consumption,min_energy,min_water_consumption,mod_date_time)
+SELECT
+    COALESCE((SELECT MAX(id) FROM daily_consumption_data), 0)
+        + ROW_NUMBER() OVER (ORDER BY d.id) AS     id,
+    d.id As                                        device_id,
+    convert(date,DATETRUNC(MONTH, dr.adddatetime)) target_month,
+    null                                           max_compressor_consumption,
+    max(dr.activeenergydelivered) As               max_energy,
+    max(dr.high_value)                                           max_high_value,
+    null                                           max_water_consumption,
+    null                                           min_compressor_consumption,
+    min(dr.activeenergydelivered) As               min_energy,
+    null                                           min_water_consumption,
+    current_timestamp                              mod_date_time
+FROM emeter_health_reading dr
+         JOIN device d ON d.id = dr.device_id
+         JOIN device_type dt ON d.device_type_id = dt.id
+WHERE dt.parent_id = 101
+  AND d.unit_id = :unitId
+GROUP BY convert(date,DATETRUNC(MONTH, dr.adddatetime)),d.id
+order by COALESCE((SELECT MAX(id) FROM hourly_consumption_data), 0)
+             + ROW_NUMBER() OVER (ORDER BY d.id)
+;
+
+
+Insert into monthly_consumption_data (id,device_id,target_month,max_compressor_consumption,max_energy,max_high_value,max_water_consumption,
+                                      min_compressor_consumption,min_energy,min_water_consumption,mod_date_time)
+SELECT
+    COALESCE((SELECT MAX(id) FROM daily_consumption_data), 0)
+        + ROW_NUMBER() OVER (ORDER BY d.id) AS     id,
+    d.id As                                        device_id,
+    convert(date,DATETRUNC(MONTH, dr.added_date_time)) target_month,
+    max(dr.compressor_consumption) As              max_compressor_consumption,
+    null max_energy,
+    null                                           max_high_value,
+    null                                           max_water_consumption,
+    min(dr.compressor_consumption)                                           min_compressor_consumption,
+    null min_energy,
+    null                                           min_water_consumption,
+    current_timestamp                              mod_date_time
+FROM device_reading dr
+         JOIN device d ON d.id = dr.device_id
+         JOIN device_type dt ON d.device_type_id = dt.id
+WHERE dt.parent_id = 102
+  AND d.unit_id = :unitId
+GROUP BY convert(date,DATETRUNC(MONTH, dr.added_date_time)),d.id
+order by COALESCE((SELECT MAX(id) FROM hourly_consumption_data), 0)
+             + ROW_NUMBER() OVER (ORDER BY d.id)
+;
+
+Insert into monthly_consumption_data (id,device_id,target_month,max_compressor_consumption,max_energy,max_high_value,max_water_consumption,
+                                      min_compressor_consumption,min_energy,min_water_consumption,mod_date_time)
+SELECT
+    COALESCE((SELECT MAX(id) FROM daily_consumption_data), 0)
+        + ROW_NUMBER() OVER (ORDER BY d.id) AS     id,
+    d.id As                                        device_id,
+    convert(date,DATETRUNC(MONTH, dr.added_date_time)) target_month,
+    null              max_compressor_consumption,
+    null max_energy,
+    null                                           max_high_value,
+    max(dr.water_consumption)                                           max_water_consumption,
+    null                                           min_compressor_consumption,
+    null min_energy,
+    min(dr.water_consumption)                                              min_water_consumption,
+    current_timestamp                              mod_date_time
+FROM device_reading dr
+         JOIN device d ON d.id = dr.device_id
+         JOIN device_type dt ON d.device_type_id = dt.id
+WHERE dt.parent_id = 104
+  AND d.unit_id = :unitId
+GROUP BY convert(date,DATETRUNC(MONTH, dr.added_date_time)),d.id
+order by COALESCE((SELECT MAX(id) FROM hourly_consumption_data), 0)
+             + ROW_NUMBER() OVER (ORDER BY d.id)
+;

@@ -1,0 +1,53 @@
+Insert into hourly_consumption_data (id,device_id,target_date,date_time,max_compressor_consumption,max_energy,max_high_value,max_water_consumption,
+                                 min_compressor_consumption,min_energy,min_water_consumption,mod_date_time)
+SELECT
+    COALESCE((SELECT MAX(id) FROM hourly_consumption_data), 0)
+        + ROW_NUMBER() OVER (ORDER BY d.id) AS id,
+    d.id As device_id,
+    cast(dr.adddatetime as date) target_date,
+    DATEADD(HOUR, DATEDIFF(HOUR, 0, dr.adddatetime), 0) date_time,
+    null max_compressor_consumption,
+    MAX(dr.ACTIVEENERGYDELIVERED) As max_energy,
+    MAX(dr.high_value) max_high_value,
+    null max_water_consumption,
+    null min_compressor_consumption,
+    MIN(dr.ACTIVEENERGYDELIVERED) As min_energy,
+    null min_water_consumption,
+    current_timestamp mod_date_time
+FROM emeter_health_reading dr
+         JOIN device d ON d.id = dr.device_id
+         JOIN device_type dt ON d.device_type_id = dt.id
+WHERE dt.parent_id = 101
+  AND d.unit_id = :unitId
+GROUP BY cast(dr.adddatetime as date),DATEADD(HOUR, DATEDIFF(HOUR, 0, dr.adddatetime), 0),d.id
+order by COALESCE((SELECT MAX(id) FROM hourly_consumption_data), 0)
+             + ROW_NUMBER() OVER (ORDER BY d.id)
+;
+
+
+
+Insert into hourly_consumption_data (id,device_id,target_date,date_time,max_compressor_consumption,max_energy,max_high_value,max_water_consumption,
+                                 min_compressor_consumption,min_energy,min_water_consumption,mod_date_time)
+SELECT
+    COALESCE((SELECT MAX(id) FROM hourly_consumption_data), 0)
+        + ROW_NUMBER() OVER (ORDER BY d.id) AS id,
+    d.id As device_id,
+    cast(dr.added_date_time as date) target_date,
+    DATEADD(HOUR, DATEDIFF(HOUR, 0, dr.added_date_time), 0) date_time,
+    null max_compressor_consumption,
+    null As max_energy,
+    null max_high_value,
+    max(dr.water_consumption) max_water_consumption,
+    null min_compressor_consumption,
+    null As min_energy,
+    min(dr.water_consumption) min_water_consumption,
+    current_timestamp mod_date_time
+FROM device_reading dr
+         JOIN device d ON d.id = dr.device_id
+         JOIN device_type dt ON d.device_type_id = dt.id
+WHERE dt.parent_id = 104
+  AND d.unit_id = :unitId
+GROUP BY cast(dr.added_date_time as date),DATEADD(HOUR, DATEDIFF(HOUR, 0, dr.added_date_time), 0),d.id
+order by COALESCE((SELECT MAX(id) FROM hourly_consumption_data), 0)
+             + ROW_NUMBER() OVER (ORDER BY d.id)
+;
