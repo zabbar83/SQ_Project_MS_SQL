@@ -1,0 +1,67 @@
+-- auto-generated definition
+create table hourly_consumption_data
+(
+    id                         bigint not null
+        primary key,
+    device_id                  bigint not null
+        constraint FK_MIN_MAX_DATA_HOURLY_DEVICE
+            references device,
+    target_date                date,
+    date_time                  datetime2,
+    max_compressor_consumption float,
+    max_energy                 float,
+    max_high_value             float,
+    max_water_consumption      float,
+    min_compressor_consumption float,
+    min_energy                 float,
+    min_water_consumption      float,
+    mod_date_time              datetime2
+)
+go
+;
+
+
+-- auto-generated definition
+create table daily_consumption_data
+(
+    id                         bigint not null
+        primary key,
+    device_id                  bigint not null
+        constraint FK_MIN_MAX_DATA_DAILY_DEVICE
+            references device,
+    target_date                date,
+    max_compressor_consumption float,
+    max_energy                 float,
+    max_high_value             float,
+    max_water_consumption      float,
+    min_compressor_consumption float,
+    min_energy                 float,
+    min_water_consumption      float,
+    mod_date_time              datetime2
+)
+go
+
+;
+
+
+-- auto-generated definition
+create table monthly_consumption_data
+(
+    id                         int    not null,
+    device_id                  bigint not null
+        constraint FK_MIN_MAX_DATA_MONTH_DEVICE
+            references device,
+    target_month               date   not null,
+    max_compressor_consumption float,
+    max_energy                 float,
+    max_high_value             float,
+    max_water_consumption      float,
+    min_compressor_consumption float,
+    min_energy                 float,
+    min_water_consumption      float,
+    mod_date_time              datetime2,
+    constraint monthly_consumption_data_pk
+        primary key (id, device_id, target_month)
+)
+go
+
