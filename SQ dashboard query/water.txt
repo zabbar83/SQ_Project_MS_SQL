@@ -1,0 +1,101 @@
+---getTotalWaterHourly---
+WITH HourlySeries AS (
+                -- 1. Generate the 24 hours (00 to 23)
+                SELECT 0 AS hour_num
+                UNION ALL
+                SELECT hour_num + 1
+                FROM HourlySeries
+                WHERE hour_num < 23
+            ),
+            TimeSlots AS (
+                -- 2. Format them to match your 'HH:00' style
+                SELECT FORMAT(DATEADD(HOUR, hour_num, '00:00'), 'HH\\:00') AS hh
+                FROM HourlySeries
+            ),
+            DeviceData AS (
+                -- 3. Your original calculation logic
+                SELECT d.id,
+                    FORMAT(dr.date_time, 'HH\\:00') AS hh,
+                    dr.max_water_consumption - dr.min_water_consumption AS water_consumption
+                FROM device_type dt
+                JOIN device d ON dt.id = d.device_type_id
+                JOIN hourly_consumption_data dr ON d.id = dr.device_id
+                WHERE dt.parent_id = 104
+                  AND d.unit_id = :unitId
+                  AND d.input_type = :inputType
+                  AND d.is_active = 1
+                  AND dr.date_time BETWEEN :targetDate + ' 00:00:00' AND :targetDate + ' 23:59:59'
+            )
+            -- 4. Final Left Join to ensure all 24 hours appear
+            SELECT
+                ts.hh AS timePeriod,
+                ISNULL(SUM(dd.water_consumption), 0) AS totalWater
+            FROM TimeSlots ts
+            LEFT JOIN DeviceData dd ON ts.hh = dd.hh
+            GROUP BY ts.hh
+            ORDER BY ts.hh
+
+;
+
+---getTotalWaterDaily---
+SELECT dd                     AS timePeriod,
+                   SUM(water_consumption) AS totalWater
+            FROM (SELECT device_id,
+                         dr.target_date                AS dd,
+                         dr.max_water_consumption - dr.min_water_consumption AS water_consumption
+                  FROM device_type dt
+                           LEFT JOIN device d
+                                     ON (dt.id = d.device_type_id AND dt.parent_id = 104 AND d.unit_id = :unitId AND
+                                         d.is_active = 1 AND d.input_type = :inputType)
+                           JOIN daily_consumption_data dr
+                                ON d.id = dr.device_id
+                                    AND dr.target_date between :fromDate and :toDate
+                  ) AS sub
+            GROUP BY dd
+            ORDER BY dd
+
+;
+
+---getTotalWaterMonthly---
+SELECT dd                     AS timePeriod,
+                   SUM(water_consumption) AS totalWater
+            FROM (SELECT device_id,
+                         FORMAT(target_month, 'MMM-yyyy')                    AS dd,
+                         dr.max_water_consumption - dr.min_water_consumption AS water_consumption
+                  FROM device_type dt
+                           LEFT JOIN device d
+                                     ON dt.id = d.device_type_id
+                                         AND dt.parent_id = 104
+                                         AND d.unit_id = :unitId
+                                         and d.input_type = :inputType
+                                         AND d.is_active = 1
+                           JOIN monthly_consumption_data dr
+                                ON d.id = dr.device_id
+                                    AND
+                                   dr.target_month between :year + '-01-01' and :year + '-12-31'
+                  ) AS sub
+            GROUP BY dd
+            ORDER BY dd
+
+;
+
+---getTotalWaterYearly---
+SELECT dd                     AS timePeriod,
+                   SUM(water_consumption) AS totalWater
+            FROM (SELECT device_id,
+                         YEAR(target_month)                       AS dd,
+                         dr.max_water_consumption - dr.min_water_consumption AS water_consumption
+                  FROM device_type dt
+                           LEFT JOIN device d
+                                     ON dt.id = d.device_type_id
+                                         AND dt.parent_id = 104
+                                         AND d.unit_id = :unitId
+                                         and d.input_type = :inputType
+                                         AND d.is_active = 1
+                           JOIN monthly_consumption_data dr
+                                ON d.id = dr.device_id
+                  ) AS sub
+            GROUP BY dd
+            ORDER BY dd
+
+;

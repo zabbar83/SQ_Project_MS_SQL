@@ -1,0 +1,119 @@
+---getMaxHighValueForOutputPowerDeviceHourly---
+select 'Output Device' as                     typeName,
+                   t1.hh1 + ':00'                         dateTime,
+                   coalesce(max(t2.totalMaxHighValue), 0) totalMaxHighValue
+            from (select b.id device_id, b.typeName, a.hh1
+                  from (SELECT FORMAT(DATEADD(HOUR, number, 0), 'HH') AS HH1
+                        FROM master..spt_values
+                        WHERE type = 'P'
+                          AND number BETWEEN 0 AND 23) a,
+                       (select distinct dt.id, dt.name typeName
+                        from emeter_health_reading ehr
+                                 inner join device d on ehr.device_id = d.id
+                                 inner join device_type dt on d.device_type_id = dt.id
+                        WHERE ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+                          AND dt.parent_id = 101
+                          AND d.unit_id = :unitId
+                          AND d.input_type = :inputType
+                          AND d.is_active = 1
+                          AND d.name != 'GAS-GENERATOR-01') b) t1
+                     left join
+                 (select deviceId,
+                         typeName          as       typeName,
+                         dateTime          as       dateTime,
+                         substring(dateTime, 13, 2) hh2,
+                         max(maxHighValue) as       totalMaxHighValue
+                  from (select d.id                                    as id,
+                               d.name                                  as name,
+                               dt.id                                      deviceId,
+                               dt.name                                 as typeName,
+                               max_high_value                     as maxHighValue,
+                               FORMAT(ehr.date_time, 'dd-MMM-yyyy HH') AS dateTime
+                        from hourly_consumption_data ehr
+                                 inner join device d on ehr.device_id = d.id
+                                 inner join device_type dt on d.device_type_id = dt.id
+                        WHERE ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
+                          AND dt.parent_id = 101
+                          AND d.unit_id = :unitId
+                          AND d.input_type = :inputType
+                          AND d.is_active = 1
+                          AND d.name != 'GAS-GENERATOR-01'
+                        ) a
+                  group by deviceId, typeName, dateTime, substring(dateTime, 13, 2)) t2
+                 on t1.device_id = t2.deviceId and t1.hh1 = t2.hh2
+            group by t1.hh1
+            order by t1.hh1
+
+;
+
+---getMaxHighValueForOutputPowerDeviceDaily---
+select
+                'Output Device' as typeName,
+                dateTime as dateTime,
+                max(maxHighValue) as totalMaxHighValue
+            from (select d.id           as id,
+                         d.name         as name,
+                         dt.name        as typeName,
+                         max_high_value as maxHighValue,
+                         FORMAT(ehr.target_date, 'dd-MMM-yyyy') AS dateTime
+                  from daily_consumption_data ehr
+                           inner join device d on ehr.device_id = d.id
+                           inner join device_type dt on d.device_type_id = dt.id
+            
+                  WHERE
+                      ehr.target_date between :fromDate and :toDate
+                    AND dt.parent_id = 101
+                    AND d.unit_id = :unitId
+                    AND d.input_type = :inputType
+                    AND d.is_active = 1
+                    AND d.name != 'GAS-GENERATOR-01'
+                 )a
+            group by dateTime
+
+;
+
+---getMaxHighValueForOutputPowerDeviceMonthly---
+SELECT 'Output Device'   AS typeName,
+                   dateTime          AS dateTime,
+                   MAX(maxHighValue) AS totalMaxHighValue
+            FROM (SELECT d.id                              AS id,
+                         d.name                            AS name,
+                         dt.name                           AS typeName,
+                         max_high_value               AS maxHighValue,
+                         FORMAT(ehr.target_month, 'MMM-yyyy') AS dateTime
+                  FROM monthly_consumption_data ehr
+                           INNER JOIN device d ON ehr.device_id = d.id
+                           INNER JOIN device_type dt ON d.device_type_id = dt.id
+                  WHERE ehr.target_month BETWEEN :fromDate AND :toDate
+                    AND dt.parent_id = 101
+                    AND d.unit_id = :unitId
+                    AND d.input_type = :inputType
+                    AND d.is_active = 1
+                    AND d.name != 'GAS-GENERATOR-01'
+                  ) a
+            GROUP BY dateTime
+
+;
+
+---getMaxHighValueForOutputPowerDeviceYearly---
+
+SELECT 'Output Device'   AS typeName,
+               dateTime          AS dateTime,
+               MAX(maxHighValue) AS totalMaxHighValue
+        FROM (SELECT d.id                              AS id,
+                     d.name                            AS name,
+                     dt.name                           AS typeName,
+                     max_high_value               AS maxHighValue,
+                     FORMAT(ehr.target_month, 'yyyy') AS dateTime
+              FROM monthly_consumption_data ehr
+                       INNER JOIN device d ON ehr.device_id = d.id
+                       INNER JOIN device_type dt ON d.device_type_id = dt.id
+              WHERE
+                 dt.parent_id = 101
+                AND d.unit_id = :unitId
+                AND d.input_type = :inputType
+                AND d.is_active = 1
+                AND d.name != 'GAS-GENERATOR-01'
+              ) a
+        GROUP BY dateTime
+;
