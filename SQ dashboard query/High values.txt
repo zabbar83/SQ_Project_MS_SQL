@@ -8,7 +8,7 @@ select 'Output Device' as                     typeName,
                         WHERE type = 'P'
                           AND number BETWEEN 0 AND 23) a,
                        (select distinct dt.id, dt.name typeName
-                        from emeter_health_reading ehr
+                        from hourly_consumption_data ehr
                                  inner join device d on ehr.device_id = d.id
                                  inner join device_type dt on d.device_type_id = dt.id
                         WHERE ehr.date_time between :targetDate + ' 12:00:00.0000000 AM' and :targetDate + ' 11:59:59.0000000 PM'
