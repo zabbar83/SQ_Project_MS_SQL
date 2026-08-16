@@ -1,0 +1,78 @@
+----getHourWiseIntervalElectricityConsumptionQuery----
+select start_time      startTime,
+       end_time        endTime,
+       SUM(CASE WHEN device_device_id = 46 THEN consumption ELSE 0 END)    AS energy_46,
+       SUM(CASE WHEN device_device_id IN (46) THEN consumption ELSE 0 END) AS totalEnergy
+from (SELECT sl,
+             device_device_id,
+             start_time,
+             end_time,
+             energy_pre_latest_data,
+             energy_max_value,
+             case
+                 when sl = 1 then energy_max_value - energy_pre_latest_data
+                 else energy_max_value -
+                      coalesce((LAG(energy_max_value) OVER (PARTITION BY device_device_id ORDER BY device_device_id, sl)), 0)
+                 end consumption
+      from
+          (SELECT cd.sl,
+                  cd.device_device_id,
+                  start_time,
+                  end_time,
+                  coalesce(previous_latest_data, 0) energy_pre_latest_data,
+                  coalesce(FIRST_VALUE(case
+                                           when sl = 1 and consumption1 is null then coalesce(previous_latest_data, 0)
+                                           else consumption1
+                                           end) OVER (
+                                           PARTITION BY device_device_id, last_non_null_sl
+                                           ORDER BY sl
+                                           ),0) AS energy_max_value
+           FROM (
+                     select
+                           cd1.*,
+                           MAX(CASE WHEN cd1.consumption1 IS NOT NULL THEN cd1.sl END) OVER
+                               (
+                               PARTITION BY cd1.device_device_id
+                               ORDER BY cd1.sl
+                               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                               ) AS last_non_null_sl
+
+                    FROM (SELECT dtr.sl, dtr.device_device_id, start_time, end_time,
+                           last_value(max(actual_activeenergydelivered)) OVER (PARTITION BY device_device_id ORDER BY sl ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) consumption1
+                    FROM (SELECT d.id device_device_id, d.*, tr.*
+                          FROM device_type dt
+                                   JOIN device d
+                                        ON dt.id = d.device_type_id
+                                            AND dt.parent_id = 101
+                                            AND d.unit_id = 1
+                                            AND d.is_active = 1
+                                   CROSS JOIN (SELECT s.sl,
+                                                      DATEADD(SECOND, 1,
+                                                              DATEADD(HOUR, (s.sl - 1) * i.hourInterval, i.startTime)) AS start_time,
+                                                      DATEADD(HOUR, s.sl * i.hourInterval, i.startTime)                AS end_time
+                                               FROM (SELECT 1                           AS hourInterval,
+                                                            CAST( ' 2026-08-12 10:20 '  AS DATETIME) AS startTime,
+                                                            CAST( ' 2026-08-12 23:59 '  AS DATETIME) AS endTime) AS i
+                                                        JOIN (SELECT TOP (SELECT DATEDIFF(MINUTE,
+                                                                                          CAST( ' 2026-08-12 10:20 '  AS DATETIME),
+                                                                                          CAST( ' 2026-08-12 23:59 '  AS DATETIME)) /
+                                                                                 60) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS sl
+                                                              FROM sys.all_objects) AS s
+                                                             ON DATEADD(HOUR, s.sl * i.hourInterval, i.startTime) <= i.endTime) tr) dtr
+                             LEFT JOIN emeter_health_reading ehr
+                                       ON dtr.id = ehr.device_id AND ehr.date_time BETWEEN dtr.start_time AND dtr.end_time
+                    group by dtr.sl, dtr.device_device_id, start_time, end_time) cd1) cd
+                    LEFT JOIN (SELECT *
+                               FROM (SELECT device_id,
+                                            date_time                                                                                                 previous_latest_date_time,
+                                            actual_activeenergydelivered                                                                                     previous_latest_data,
+                                            ROW_NUMBER() OVER (PARTITION BY device_id ORDER BY device_id, date_time DESC, actual_activeenergydelivered DESC) rnk
+                                     FROM emeter_health_reading
+                                     WHERE date_time < CONVERT(DATETIME,  ' 2026-08-12 10:20 '  + ':01', 120)) t2
+                               WHERE rnk = 1) pd
+                              ON cd.device_device_id = pd.device_id
+          )ll
+     ) t1
+group by start_time, end_time
+order by start_time
+;
