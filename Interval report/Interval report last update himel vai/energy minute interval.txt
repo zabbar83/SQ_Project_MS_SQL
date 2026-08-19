@@ -67,7 +67,7 @@ from (SELECT sl,
                                             actual_activeenergydelivered                                                                                     previous_latest_data,
                                             ROW_NUMBER() OVER (PARTITION BY device_id ORDER BY device_id, date_time DESC, actual_activeenergydelivered DESC) rnk
                                      FROM emeter_health_reading
-                                     WHERE date_time < CONVERT(DATETIME,  ' 2025-08-12 11:20 '  + ':01', 120)) t2
+                                     WHERE date_time < CONVERT(DATETIME,  ' 2026-08-12 10:00 '  + ':01', 120)) t2
                                WHERE rnk = 1) pd
                               ON cd.device_device_id = pd.device_id
           )ll
